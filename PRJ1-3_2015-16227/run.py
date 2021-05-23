@@ -339,7 +339,7 @@ class MyTransformer(Transformer):
           new_row.append(r)
       rows[i] = new_row
     
-    final_row = [r for r in rows[i]]
+    final_row = [r for r in rows[-1]]
 
     if where:
     #with where clause
@@ -425,7 +425,7 @@ class MyTransformer(Transformer):
                 c_list = json.loads(myDB.get(b'columns'))
                 if c_n in c_list:
                   #find it
-                  stripped_tuple[op_idx] = f"{t_n}.{c.n}"
+                  stripped_tuple[op_idx] = f"{t_n}.{c_n}"
                   type_s = json.loads(myDB.get(c_n.encode('utf-8')))['type']
                   if type_s in ['int','date']:
                     two_type.append(type_s)
@@ -495,10 +495,10 @@ class MyTransformer(Transformer):
     return items[1]
   
   def boolean_expr(self, items):
-    return ('and',items[0::2])
+    return ['and',items[0::2]]
 
   def boolean_term(self, items):
-    return ('or',items[0::2])
+    return ['or',items[0::2]]
 
   def comparison_predicate(self, items):
     return tuple(items)
