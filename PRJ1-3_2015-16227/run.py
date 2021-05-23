@@ -269,9 +269,10 @@ class MyTransformer(Transformer):
         myDB.open(f"db/{table}.db", dbtype=db.DB_HASH)
         col_names = json.loads(myDB.get(b'columns'))
         for col in cols:
-          if len(col.split('.')) > 1:
-            if col.split('.')[0] == table:
-              if col.split('.')[1] in col_names:
+          col_info = col.split('.')
+          if len(col_info) > 1:
+            if col_info[0] == table or nickname[col_info[0]] == table:
+              if col_info[1] in col_names:
                 columns.append(col)
               else:
                 raise SelectColumnResolveError(col)
@@ -288,7 +289,7 @@ class MyTransformer(Transformer):
         copy = columns
         for c in cols:
           copy.remove(c)
-        raise SelectColumnResolveError(c[0])
+        raise SelectColumnResolveError(copy[0])
     
     if where:
     #with where clause
@@ -314,13 +315,13 @@ class MyTransformer(Transformer):
             for col in columns:
               if len(col.split('.')) > 1:
                 t_name, col_name = col.split('.')
-                if t_name != table:
-                  info.append(None)
-                else:
+                if t_name == table or nickname[t_name] == table:
                   if val_dict[col_name] is None:
                     info.append('null')
                   else:
                     info.append(val_dict[col_name])
+                else:
+                  info.append(None)
               else:
                 if col in val_dict:
                   if val_dict[col] is None:
@@ -340,9 +341,8 @@ class MyTransformer(Transformer):
             r = [x if y is None else y for x,y in zip(rows[i][j], row)]
             new_row.append(r)
         rows[i] = new_row
-      print(rows)
       for r in rows[-1]:
-       result.add_row(r)
+        result.add_row(r)
       print(result)
 
 
