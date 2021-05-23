@@ -127,7 +127,6 @@ class WhereIncomparableError(SimpleDatabaseError):
     def __str__(self):
         return "Where clause try to compare incomparable values"
 
-
 class WhereTableNotSpecified(SimpleDatabaseError):
     def __str__(self):
         return "Where clause try to reference tables which are not specified"
@@ -135,7 +134,6 @@ class WhereTableNotSpecified(SimpleDatabaseError):
 class WhereColumnNotExist(SimpleDatabaseError):
     def __str__(self):
         return "Where clause try to reference non existing column"
-
 
 class WhereAmbiguousReference(SimpleDatabaseError):
     def __str__(self):

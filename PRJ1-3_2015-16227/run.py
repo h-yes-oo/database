@@ -305,6 +305,8 @@ class MyTransformer(Transformer):
                     predicates.append(i)
       flatten(condition)
       print(predicates)
+      #check if comparable
+
 
     else:
     #without where cluase
@@ -356,6 +358,24 @@ class MyTransformer(Transformer):
       for r in rows[-1]:
         result.add_row(r)
       print(result)
+
+  def null_operation(self, items):
+    if len(items) == 3:
+      return False
+    else:
+      return True
+
+  def null_predicate(self, items):
+    if items[-1]:
+      if len(items) > 2:
+        return (f"{items[0]}.{items[1]}","is",None)
+      else:
+        return(items[0],"is",None)
+    else:
+      if len(items) > 2:
+        return (f"{items[0]}.{items[1]}","is",None)
+      else:
+        return(items[0],"is not",None)
 
   def where_clause(self, items):
     #remove WHERE cluase
