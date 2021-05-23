@@ -532,9 +532,9 @@ class MyTransformer(Transformer):
 
   def boolean_factor(self, items):
     if len(items) > 1:
-      return [False, items[-1]]
+      return ['not', items[-1]]
     else:
-      return [True, items[-1]]
+      return items[-1]
 
   def select_list(self, items):
     col_sel = []

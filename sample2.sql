@@ -31,6 +31,7 @@ select * from class, enrolls;
 
 ('and', [('or', [(True, ('a', 'is not', None)), (True, ('b', 'is', None)), (True, [('and', [('or', [(True, (('col', 'c'), '>', ('int', 3)))]), ('or', [(True, (('date', datetime.datetime(2020, 3, 5, 0, 0)), '>', ('col', 'da')))])])])])])
 
- select * from enrolls, students where num > 5 and (lecture_name > 'abc' or enrolls.id < 5) or students.id > 10;
- ['and', [['or', [[True, (('col', 'num'), '>', ('int', 5))], [True, [['and', [['or', [[True, (('col', 'lecture_name'), '>', ('str', 'abc'))]]], ['or', [[True, (('col', 'enrolls.id'), '<', ('int', 5))]]]]]]]]], ['or', [[True, (('col', 'students.id'), '>', ('int', 10))]]]]]
-vvvvvvvvvvvv
+ select * from enrolls, students where num > 5 and ( not lecture_name > 'abc' or enrolls.id < 5) or students.id is null;
+['and', [['or', [(('col', 'num'), '>', ('int', 5)), [['and', [['or', [['not', (('col', 'lecture_name'), '>', ('str', 'abc'))]]], ['or', [(('col', 'enrolls.id'), '<', ('int', 5))]]]]]]], ['or', [('students.id', 'is', None)]]]]
+
+['and', [['or', [(('col', 'num'), '>', ('int', 5))]]]]
