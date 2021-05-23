@@ -279,12 +279,16 @@ class MyTransformer(Transformer):
             if col in col_names:
               columns.append(col)
         myDB.close()
+      #if not existing column
       for col in cols:
         if col not in columns:
           raise SelectColumnResolveError(col)
       #if duplicate column name exist, ambiguous
-      if len(cols) != len(columns):
-        raise SelectColumnResolveError(col)
+      if len(cols) < len(columns):
+        copy = columns
+        for c in cols:
+          copy.remove(c)
+        raise SelectColumnResolveError(c[0])
     
     if where:
     #with where clause
