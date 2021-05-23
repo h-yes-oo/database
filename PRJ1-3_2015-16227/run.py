@@ -618,7 +618,7 @@ class MyTransformer(Transformer):
     #without where cluase
       result = PrettyTable(columns)
       col_index = list(map(lambda x: all_cols.index(x),columns))
-      for r in final:
+      for r in final_row:
         rr = list(map(lambda x: r[x], col_index))
         result.add_row(rr)
       print(result)
