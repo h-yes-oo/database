@@ -293,7 +293,19 @@ class MyTransformer(Transformer):
     
     if where:
     #with where clause
-      print(table_expression[1][1])
+      condition = table_expression[1][1]
+      print(condition)
+      predicates = []
+      def flatten(l):
+          for i in l:
+              if type(i) == list or (type(i) == tuple and len(i) == 2):
+                  flatten(i)
+              else:
+                  if type(i) == tuple and len(i) == 3:
+                    predicates.append(i)
+      flatten(condition)
+      print(predicates)
+
     else:
     #without where cluase
       result = PrettyTable(columns)
@@ -347,7 +359,7 @@ class MyTransformer(Transformer):
 
   def where_clause(self, items):
     #remove WHERE cluase
-    return items[1:]
+    return items[1]
   
   def boolean_expr(self, items):
     return items[0::2]
@@ -356,7 +368,7 @@ class MyTransformer(Transformer):
     return items[0::2]
 
   def comparison_predicate(self, items):
-    return items
+    return tuple(items)
 
   def comp_operand(self, items):
     try:

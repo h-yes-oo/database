@@ -121,3 +121,22 @@ class SelectTableExistenceError(SelectionError):
 class SelectColumnResolveError(SelectionError):
     def __init__(self, column):
         super().__init__(f"fail to resolve '{column}'")
+
+
+class WhereIncomparableError(SimpleDatabaseError):
+    def __str__(self):
+        return "Where clause try to compare incomparable values"
+
+
+class WhereTableNotSpecified(SimpleDatabaseError):
+    def __str__(self):
+        return "Where clause try to reference tables which are not specified"
+
+class WhereColumnNotExist(SimpleDatabaseError):
+    def __str__(self):
+        return "Where clause try to reference non existing column"
+
+
+class WhereAmbiguousReference(SimpleDatabaseError):
+    def __str__(self):
+        return "Where clause contains ambiguous reference"
