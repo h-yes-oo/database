@@ -375,6 +375,21 @@ class MyTransformer(Transformer):
   
   def COMP_OP(self, items):
     return items[0]
+  
+  def predicate(self, items):
+    return items[0]
+
+  def boolean_test(self,items):
+    return items[0]
+  
+  def parenthesized_boolean_expr(self, items):
+    return [items[1]]
+
+  def boolean_factor(self, items):
+    if len(items) > 1:
+      return (False, items[-1])
+    else:
+      return (True, items[-1])
 
   def select_list(self, items):
     col_sel = []
