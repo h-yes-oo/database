@@ -234,42 +234,60 @@ class MyTransformer(Transformer):
       print(prompt,e,sep='')
 
   def select_query(self, items):
-    existing_tables = os.listdir('../PRJ1-3_2015-16227/db')
-    existing_tables = list(map(lambda x : x[:-3], existing_tables))
     cols, col_nick = items[1]
     table_expression = items[2]
     where = table_expression[0]
     tables, nickname  = table_expression[1][0]
+    #check if all tables exists
+    existing_tables = os.listdir('../PRJ1-3_2015-16227/db')
+    existing_tables = list(map(lambda x : x[:-3], existing_tables))
     for table in tables:
       if table not in existing_tables:
         raise SelectTableExistenceError(table)
+    columns = []
+    # if col list is *, add all columns of tables
+    if len(cols) == 0:
+      col_table = []
+      for table in tables:
+        myDB = db.DB()
+        myDB.open(f"db/{table}.db", dbtype=db.DB_HASH)
+        col_names = json.loads(myDB.get(b'columns'))
+        for col in col_names:
+          if col in columns:
+            dup_idx = columns.index(col)
+            columns[dup_idx] = f"{col_table[dup_idx]}.{col}"
+            columns.append(f"{table}.{col}")
+            col_table.append(table)
+          else:
+            columns.append(col)
+            col_table.append(table)
+        myDB.close()
+    else:
+    #if col list is given, check if the cols are all right and sort by tables
+      for table in tables:
+        myDB = db.DB()
+        myDB.open(f"db/{table}.db", dbtype=db.DB_HASH)
+        col_names = json.loads(myDB.get(b'columns'))
+        for col in cols:
+          if len(col.split('.')) > 1:
+            if col.split('.')[0] == table:
+              if col.split('.')[1] in col_names:
+                columns.append(col)
+              else:
+                raise SelectColumnResolveError(col)
+          else:
+            if col in col_names:
+              columns.append(col)
+        myDB.close()
+      for col in cols:
+        if col not in columns:
+          raise SelectColumnResolveError(col)
+    
     if where:
-      #with where clause
+    #with where clause
       print(table_expression[1][1])
     else:
-      #without where cluase
-      if len(cols) == 0:
-        #select all
-        columns = []
-        col_table = []
-        for table in tables:
-          myDB = db.DB()
-          myDB.open(f"db/{table}.db", dbtype=db.DB_HASH)
-          col_names = json.loads(myDB.get(b'columns'))
-          for col in col_names:
-            if col in columns:
-              dup_idx = columns.index(col)
-              columns[dup_idx] = f"{col_table[dup_idx]}.{col}"
-              columns.append(f"{table}.{col}")
-              col_table.append(table)
-            else:
-              columns.append(col)
-              col_table.append(table)
-          myDB.close()
-      else:
-        # select some
-        print(cols)
-        print(col_nick)
+    #without where cluase
       result = PrettyTable(columns)
       rows = []
       for table in tables:

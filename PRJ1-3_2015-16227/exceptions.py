@@ -117,3 +117,7 @@ class SelectionError(SimpleDatabaseError):
 class SelectTableExistenceError(SelectionError):
     def __init__(self, table):
         super().__init__(f"'{table}' does not exist")
+
+class SelectColumnResolveError(SelectionError):
+    def __init__(self, column):
+        super().__init__(f"fail to resolve '{column}'")
