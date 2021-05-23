@@ -345,6 +345,15 @@ class MyTransformer(Transformer):
         result.add_row(r)
       print(result)
 
+  def where_clause(self, items):
+    #remove WHERE cluase
+    return items[1:]
+  
+  def boolean_expr(self, items):
+    return items[0::2]
+
+  def boolean_term(self, items):
+    return items[0::2]
 
   def select_list(self, items):
     col_sel = []
@@ -494,7 +503,7 @@ class MyTransformer(Transformer):
       while data:
         key, value = data
         if key == pidx:
-          raise InsertDuplicatePrimaryKeyError
+          raise InsertDuplicatePrimaryKeyError()
         data = cursor.next()
 
       #insert new data to database
