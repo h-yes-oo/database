@@ -28,3 +28,5 @@ insert into enrolls values(1,'hihello',5);
 insert into enrolls values(2,'lec6',5);
 
 select * from class, enrolls;
+
+('and', [('or', [(True, ('a', 'is not', None)), (True, ('b', 'is', None)), (True, [('and', [('or', [(True, (('col', 'c'), '>', ('int', 3)))]), ('or', [(True, (('date', datetime.datetime(2020, 3, 5, 0, 0)), '>', ('col', 'da')))])])])])])

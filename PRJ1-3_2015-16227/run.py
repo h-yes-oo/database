@@ -347,16 +347,18 @@ class MyTransformer(Transformer):
         else:
           #comparison predicate
           two_type = []
+          print(two_type)
           for op_idx in (0,2):
             if p[op_idx][0] in ['str','int','date']:
               two_type.append(p[op_idx][0])
-              #remove the label, remain only the value
-              p[op_idx] = p[op_idx][1]
             else:
               #if col name, check if valid col name
               col_name = p[op_idx][1]
-              if col_nick[col_name] is not None:
-                  col_name = col_nick[col_name]
+              print(col_nick)
+              if len(col_nick) > 0 and col_nick[col_name] is not None:
+                print('hi')
+                col_name = col_nick[col_name]
+              print('hihi')
               if len(col_name.split('.')) > 1:
                 t_n , c_n = col_name.split('.')
                 #check if specified table
@@ -380,8 +382,9 @@ class MyTransformer(Transformer):
                   raise WhereColumnNotExist()
                 myDB.close()
               else:
+                print(two_type)
                 Find = False
-                find_type
+                find_type = ''
                 for t_n in tables:
                   myDB = db.DB()
                   myDB.open(f"db/{t_n}.db", dbtype=db.DB_HASH)
@@ -402,6 +405,7 @@ class MyTransformer(Transformer):
                   two_type.append(find_type)
                 else:
                   raise WhereColumnNotExist()
+          print(two_type)
           if len(two_type) == 2:
             if two_type[0] != two_type[1]:
               raise WhereIncomparableError()
