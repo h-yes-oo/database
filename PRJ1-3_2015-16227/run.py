@@ -359,15 +359,6 @@ class MyTransformer(Transformer):
     return items
 
   def comp_operand(self, items):
-    if len(items) > 1:
-      return "f{items[0]}.{items[1]}"
-    else:
-      return items[0]
-  
-  def COMP_OP(self, items):
-    return items[0]
-  
-  def comparable_value(self, items):
     type = items[0].type
     if type == 'INT':
       return int(items[0])
@@ -375,6 +366,14 @@ class MyTransformer(Transformer):
       return datetime.datetime.strptime(items[0],'%Y-%m-%d')
     elif type == 'STR':
       return items[0][1:-1]
+    else:
+      if len(items) > 1:
+        return f"{items[0]}.{items[1]}"
+      else:
+        return items[0]
+  
+  def COMP_OP(self, items):
+    return items[0]
 
   def select_list(self, items):
     col_sel = []
