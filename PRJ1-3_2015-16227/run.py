@@ -282,6 +282,9 @@ class MyTransformer(Transformer):
       for col in cols:
         if col not in columns:
           raise SelectColumnResolveError(col)
+      #if duplicate column name exist, ambiguous
+      if len(cols) != len(columns):
+        raise SelectColumnResolveError(col)
     
     if where:
     #with where clause
