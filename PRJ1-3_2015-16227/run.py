@@ -355,6 +355,27 @@ class MyTransformer(Transformer):
   def boolean_term(self, items):
     return items[0::2]
 
+  def comparison_predicate(self, items):
+    return items
+
+  def comp_operand(self, items):
+    if len(items) > 1:
+      return "f{items[0]}.{items[1]}"
+    else:
+      return items[0]
+  
+  def COMP_OP(self, items):
+    return items[0]
+  
+  def comparable_value(self, items):
+    type = items[0].type
+    if type == 'INT':
+      return int(items[0])
+    elif type == 'DATE':
+      return datetime.datetime.strptime(items[0],'%Y-%m-%d')
+    elif type == 'STR':
+      return items[0][1:-1]
+
   def select_list(self, items):
     col_sel = []
     col_nick = {}
