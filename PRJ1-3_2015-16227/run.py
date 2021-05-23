@@ -7,6 +7,7 @@ import json
 from exceptions import *
 import datetime
 from prettytable import PrettyTable
+import copy
 
 # to reuse prompt message
 prompt = "DB_2015-16227> "
@@ -471,11 +472,13 @@ class MyTransformer(Transformer):
       print(predicates)
 
       for row in final_row:
-        def evaluate(l):
+
+        cond = copy.deepcopy(condition)
+        def evaluate(l,row):
           for idx in range(len(l)):
             i=l[idx]
             if type(i) == list or (type(i) == tuple and len(i) == 2):
-                evaluate(i)
+                evaluate(i,row)
             else:
                 if type(i) == tuple and len(i) == 3:
                     oper = i[1]
@@ -502,7 +505,7 @@ class MyTransformer(Transformer):
                       two_type = []
                       eval = [i[0],i[1],i[2]]
                       #if val op col
-                      if i[0][0] in in ['str','int','date'] and i[2][0] == 'col':
+                      if i[0][0] in ['str','int','date'] and i[2][0] == 'col':
                         eval[0] = i[0][1]
                         col_name = i[2][1]
                         if col_name in col_nick:
@@ -512,7 +515,7 @@ class MyTransformer(Transformer):
                         ridx = all_cols.index(col_name)
                         eval[2] = row[ridx]
                       #elif col op val
-                      elif i[2][0] in in ['str','int','date'] and i[0][0] == 'col':
+                      elif i[2][0] in ['str','int','date'] and i[0][0] == 'col':
                         eval[2] = i[2][1]
                         col_name = i[0][1]
                         if col_name in col_nick:
@@ -542,6 +545,7 @@ class MyTransformer(Transformer):
                         eval[0] = i[0][1]
                         eval[2] = i[2][1]
                       #evaluate
+                      print(f"row {row} eval {eval}")
                       if eval[1] == "<":
                         if i[0] < i[2]:
                           l[idx] = True
@@ -594,13 +598,13 @@ class MyTransformer(Transformer):
               else:
                 combine(i)
 
-        evaluate(condition)
-        print(condition)
-        while not all(type(x) == bool for x in condition[1]):
-          combine(condition)
-          print(condition)
+        evaluate(cond,row)
+        print(cond)
+        while not all(type(x) == bool for x in cond[1]):
+          combine(cond)
+          print(cond)
         
-        print(f"row {row} condition {condition}")
+        print(f"row {row} condition {cond}")
 
     else:
     #without where cluase
