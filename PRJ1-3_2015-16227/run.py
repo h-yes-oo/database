@@ -258,7 +258,8 @@ class MyTransformer(Transformer):
       columns = all_cols
     else:
     #if col list is given, check if the cols are all right and sort by tables
-      cols_copy = cols
+      cols_copy = [ c for c in cols ]
+      print(cols, cols_copy)
       for table in tables:
         myDB = db.DB()
         myDB.open(f"db/{table}.db", dbtype=db.DB_HASH)
@@ -268,7 +269,7 @@ class MyTransformer(Transformer):
           if len(col_info) > 1:
             if col_info[0] == table or (col_info[0] in nickname and nickname[col_info[0]] == table):
               if col_info[1] in col_names:
-                columns.append(f"{table}.{col}")
+                columns.append(f"{table}.{col_info[1]}")
                 try:
                   cols_copy.remove(col)
                 except:
@@ -284,6 +285,8 @@ class MyTransformer(Transformer):
               except:
                 #if duplicate column name exist, ambiguous
                 raise SelectColumnResolveError(col)
+            print(cols)
+            print(cols_copy)
         myDB.close()
       #if not existing column
       if len(cols_copy) > 0:
