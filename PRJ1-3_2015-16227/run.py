@@ -382,10 +382,10 @@ class MyTransformer(Transformer):
     return items[1]
   
   def boolean_expr(self, items):
-    return items[0::2]
+    return ('and',items[0::2])
 
   def boolean_term(self, items):
-    return items[0::2]
+    return ('or',items[0::2])
 
   def comparison_predicate(self, items):
     return tuple(items)
@@ -394,16 +394,16 @@ class MyTransformer(Transformer):
     try:
       type = items[0].type
       if type == 'INT':
-        return int(items[0])
+        return ('int',int(items[0]))
       elif type == 'DATE':
-        return datetime.datetime.strptime(items[0],'%Y-%m-%d')
+        return ('date',datetime.datetime.strptime(items[0],'%Y-%m-%d'))
       elif type == 'STR':
-        return items[0][1:-1]
+        return ('str',items[0][1:-1])
     except:
       if len(items) > 1:
-        return f"{items[0]}.{items[1]}"
+        return ('col',f"{items[0]}.{items[1]}")
       else:
-        return items[0]
+        return ('col',items[0])
   
   def COMP_OP(self, items):
     return items[0]
