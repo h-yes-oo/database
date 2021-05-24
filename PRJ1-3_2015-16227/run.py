@@ -598,7 +598,7 @@ class MyTransformer(Transformer):
         if any(x for x in cond[1]):
           final.append(row)
       
-      result = PrettyTable(columns)
+      result = PrettyTable(list(map(lambda x: x.upper(),columns)))
       col_index = list(map(lambda x: all_cols.index(x),columns))
       for r in final:
         rr = list(map(lambda x: r[x], col_index))
@@ -607,7 +607,7 @@ class MyTransformer(Transformer):
 
     else:
     #without where cluase
-      result = PrettyTable(columns)
+      result = PrettyTable(list(map(lambda x: x.upper(),columns)))
       col_index = list(map(lambda x: all_cols.index(x),columns))
       for r in final_row:
         rr = list(map(lambda x: r[x], col_index))
@@ -731,12 +731,14 @@ class MyTransformer(Transformer):
     else:
       myDB = db.DB()
       myDB.open(file_name, dbtype=db.DB_HASH)
-
+      #check if number of column matches
       original_cols = json.loads(myDB.get(b'columns'))
       column_name_list = original_cols
       insert_info = items[-1]
       if len(insert_info) > 1:
         column_name_list = insert_info[0]
+        if len(column_name_list) != len(original_cols):
+          raise InsertTypeMismatchError()
         for col in column_name_list:
           if col not in original_cols:
             raise InsertColumnExistenceError(col)
@@ -996,13 +998,11 @@ class MyTransformer(Transformer):
               if c_n not in c_list:
                 raise WhereColumnNotExist()
               else:
-                predicates[idx] = (f"{t_n}.{c_n}",p[1],p[2])
                 p_col.append(c_n)
               myDB.close()
             else:
               c_list = json.loads(myDB.get(b'columns'))
               if col_name in c_list:
-                  predicates[idx] = (f"{t_n}.{col_name}",p[1],p[2])
                   p_col.append(col_name)
               else:
                 raise WhereColumnNotExist()

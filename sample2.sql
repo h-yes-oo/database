@@ -1,10 +1,12 @@
 create table students (
     id int,
+    birthday date,
     primary key(id)
 );
 
 create table class (
     num int,
+    start_date date,
     primary key(num)
 );
 
@@ -17,28 +19,37 @@ create table enrolls (
     foreign key(num) references class(num)
 );
 
-insert into students values(1);
-insert into students values(2);
-insert into students values(3);
-insert into students values(4);
-insert into students values(5);
-insert into students values(6);
+insert into students values(1, null);
+insert into students values(2, 2020-02-16);
+insert into students values(3, 2020-03-16);
+insert into students values(4, 2020-04-16);
+insert into students values(5, 2020-05-16);
+insert into students values(6, 2020-06-16);
 
-insert into class values(5);
-insert into class values(6);
+insert into class values(5, null);
+insert into class values(6, null);
+insert into class values(3, 2020-03-16);
+insert into class values(4, 2020-03-17);
 
 insert into enrolls values(1,'hihi',6);
 insert into enrolls values(1,'hihello',5);
 insert into enrolls values(2,'lec6',5);
 insert into enrolls values(3,'hihi3',6);
-insert into enrolls values(4,'hi44',5);
-insert into enrolls values(5,'leadfa',5);
+insert into enrolls values(4,'hi44',3);
+insert into enrolls values(5,'leadfa',4);
 
-select * from class, enrolls;
+select * from account;
 
-('and', [('or', [(True, ('a', 'is not', None)), (True, ('b', 'is', None)), (True, [('and', [('or', [(True, (('col', 'c'), '>', ('int', 3)))]), ('or', [(True, (('date', datetime.datetime(2020, 3, 5, 0, 0)), '>', ('col', 'da')))])])])])])
+create table account (
+    ACCOUNT_NUMBER date,
+    branch_name char(20),
+    BALANCE int,
+    primary key(account_number)
+);
 
- select * from enrolls, students where num > 5 and ( not lecture_name > 'abc' or enrolls.id < 5) or students.id is null;
-['and', [['or', [(('col', 'num'), '>', ('int', 5)), [['and', [['or', [['not', (('col', 'lecture_name'), '>', ('str', 'abc'))]]], ['or', [(('col', 'enrolls.id'), '<', ('int', 5))]]]]]]], ['or', [('students.id', 'is', None)]]]]
-
-['and', [['or', [(('col', 'num'), '>', ('int', 5))]]]]
+create table loan (
+    ACCOUNT_NUMBER date,
+    branch_name char(20),
+    BALANCE int,
+    primary key(account_number)
+);
