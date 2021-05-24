@@ -306,7 +306,105 @@ class MyTransformer(Transformer):
       flatten(condition)
       print(predicates)
       #check if comparable
-
+      for p in predicates:
+        oper = p[1]
+        if oper in ['is','is not']:
+          #null predicate
+          #find if the col name is valid
+          col_name = p[0]
+          if col_nick[col_name] is not None:
+            col_name = col_nick[col_name]
+          if len(col_name.split('.')) > 1:
+            t_n , c_n = col_name.split('.')
+            #check if specified table
+            if t_n not in tables:
+              if ninkname[t_n] is None:
+                raise WhereTableNotSpecified()
+              else:
+                t_n = nickname[t_n]
+            #check if the col exist
+            myDB = db.DB()
+            myDB.open(f"db/{t_n}.db", dbtype=db.DB_HASH)
+            c_list = json.loads(myDB.get(b'columns'))
+            if c_n not in c_list:
+              raise WhereColumnNotExist()
+            myDB.close()
+          else:
+            Find = False
+            for t_n in tables:
+              myDB = db.DB()
+              myDB.open(f"db/{t_n}.db", dbtype=db.DB_HASH)
+              c_list = json.loads(myDB.get(b'columns'))
+              if col_name in c_list:
+                if Find:
+                  #if same col name found in two different tables, ambiguous
+                  raise WhereAmbiguousReference()
+                else:
+                  Find = True
+              myDB.close()
+            if not Find:
+              raise WhereColumnNotExist()
+        else:
+          #comparison predicate
+          two_type = []
+          for op_idx in (0,2):
+            if p[op_idx][0] in ['str','int','date']:
+              two_type.append(p[op_idx][0])
+              #remove the label, remain only the value
+              p[op_idx] = p[op_idx][1]
+            else:
+              #if col name, check if valid col name
+              col_name = p[op_idx][1]
+              if col_nick[col_name] is not None:
+                  col_name = col_nick[col_name]
+              if len(col_name.split('.')) > 1:
+                t_n , c_n = col_name.split('.')
+                #check if specified table
+                if t_n not in tables:
+                  if ninkname[t_n] is None:
+                    raise WhereTableNotSpecified()
+                  else:
+                    t_n = nickname[t_n]
+                #check if the col exist
+                myDB = db.DB()
+                myDB.open(f"db/{t_n}.db", dbtype=db.DB_HASH)
+                c_list = json.loads(myDB.get(b'columns'))
+                if c_n in c_list:
+                  #find it
+                  type_s = json.loads(myDB.get(c_n.encode('utf-8')))['type']
+                  if type_s in ['int','date']:
+                    two_type.append(type_s)
+                  else:
+                    two_type.append('str')
+                else:
+                  raise WhereColumnNotExist()
+                myDB.close()
+              else:
+                Find = False
+                find_type
+                for t_n in tables:
+                  myDB = db.DB()
+                  myDB.open(f"db/{t_n}.db", dbtype=db.DB_HASH)
+                  c_list = json.loads(myDB.get(b'columns'))
+                  if col_name in c_list:
+                    if Find:
+                      #if same col name found in two different tables, ambiguous
+                      raise WhereAmbiguousReference()
+                    else:
+                      Find = True
+                      type_s = json.loads(myDB.get(col_name.encode('utf-8')))['type']
+                      if type_s in ['int','date']:
+                        find_type = type_s
+                      else:
+                        find_type = 'str'
+                  myDB.close()
+                if Find:
+                  two_type.append(find_type)
+                else:
+                  raise WhereColumnNotExist()
+          if len(two_type) == 2:
+            if two_type[0] != two_type[1]:
+              raise WhereIncomparableError()
 
     else:
     #without where cluase
