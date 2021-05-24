@@ -547,32 +547,32 @@ class MyTransformer(Transformer):
                       #evaluate
                       print(f"row {row} eval {eval}")
                       if eval[1] == "<":
-                        if i[0] < i[2]:
+                        if eval[0] < eval[2]:
                           l[idx] = True
                         else: 
                           l[idx] = False
                       if eval[1] == ">":
-                        if i[0] > i[2]:
+                        if eval[0] > eval[2]:
                           l[idx] = True
                         else: 
                           l[idx] = False
                       if eval[1] == "=":
-                        if i[0] == i[2]:
+                        if eval[0] == eval[2]:
                           l[idx] = True
                         else: 
                           l[idx] = False
                       if eval[1] == ">=":
-                        if i[0] >= i[2]:
+                        if eval[0] >= eval[2]:
                           l[idx] = True
                         else: 
                           l[idx] = False
                       if eval[1] == "<=":
-                        if i[0] <= i[2]:
+                        if eval[0] <= eval[2]:
                           l[idx] = True
                         else: 
                           l[idx] = False
                       if eval[1] == "!=":
-                        if i[0] != i[2]:
+                        if eval[0] != eval[2]:
                           l[idx] = True
                         else: 
                           l[idx] = False
