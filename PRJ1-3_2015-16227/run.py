@@ -309,7 +309,7 @@ class MyTransformer(Transformer):
         val_dict = json.loads(value)
         if key not in info_list:
           info = []
-          for col in columns:
+          for col in all_cols:
             if len(col.split('.')) > 1:
               t_name, col_name = col.split('.')
               if t_name == table or (t_name in nickname and nickname[t_name] == table):
@@ -471,8 +471,9 @@ class MyTransformer(Transformer):
           predicates[idx] = tuple(stripped_tuple)
       print(predicates)
 
-      for row in final_row:
+      final = []
 
+      for row in final_row:
         cond = copy.deepcopy(condition)
         def evaluate(l,row):
           for idx in range(len(l)):
@@ -599,18 +600,27 @@ class MyTransformer(Transformer):
                 combine(i)
 
         evaluate(cond,row)
-        print(cond)
         while not all(type(x) == bool for x in cond[1]):
           combine(cond)
-          print(cond)
         
         print(f"row {row} condition {cond}")
+        if all(x for x in cond[1]):
+          final.append(row)
+      
+      result = PrettyTable(columns)
+      col_index = list(map(lambda x: all_cols.index(x),columns))
+      for r in final:
+        rr = list(map(lambda x: r[x], col_index))
+        result.add_row(rr)
+      print(result)
 
     else:
     #without where cluase
       result = PrettyTable(columns)
-      for r in final_row:
-        result.add_row(r)
+      col_index = list(map(lambda x: all_cols.index(x),columns))
+      for r in final:
+        rr = list(map(lambda x: r[x], col_index))
+        result.add_row(rr)
       print(result)
 
   def null_operation(self, items):
