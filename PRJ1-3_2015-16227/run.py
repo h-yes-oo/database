@@ -346,6 +346,7 @@ class MyTransformer(Transformer):
       condition = table_expression[1][1]
       print(condition)
       predicates = []
+      p_col = {}
       def flatten(l):
           for i in l:
               if type(i) == list or (type(i) == tuple and len(i) == 2):
@@ -354,7 +355,6 @@ class MyTransformer(Transformer):
                   if type(i) == tuple and len(i) == 3:
                     predicates.append(i)
       flatten(condition)
-      print(predicates)
       #check if comparable
       for idx in range(len(predicates)):
         p = predicates[idx]
@@ -381,6 +381,7 @@ class MyTransformer(Transformer):
               raise WhereColumnNotExist()
             else:
               predicates[idx] = (f"{t_n}.{c_n}",p[1],p[2])
+              p_col[col_name] = f"{t_n}.{c_n}"
             myDB.close()
           else:
             Find = False
@@ -395,6 +396,7 @@ class MyTransformer(Transformer):
                 else:
                   Find = True
                   predicates[idx] = (f"{t_n}.{col_name}",p[1],p[2])
+                  p_col[col_name] = f"{t_n}.{col_name}"
               myDB.close()
             if not Find:
               raise WhereColumnNotExist()
@@ -426,6 +428,7 @@ class MyTransformer(Transformer):
                 if c_n in c_list:
                   #find it
                   stripped_tuple[op_idx] = f"{t_n}.{c_n}"
+                  p_col[col_name] = f"{t_n}.{c_n}"
                   type_s = json.loads(myDB.get(c_n.encode('utf-8')))['type']
                   if type_s in ['int','date']:
                     two_type.append(type_s)
@@ -449,6 +452,7 @@ class MyTransformer(Transformer):
                     else:
                       Find = True
                       stripped_tuple[op_idx] = f"{t_n}.{col_name}"
+                      p_col[col_name] = f"{t_n}.{col_name}"
                       type_s = json.loads(myDB.get(col_name.encode('utf-8')))['type']
                       if type_s in ['int','date']:
                         find_type = type_s
@@ -465,6 +469,139 @@ class MyTransformer(Transformer):
               raise WhereIncomparableError()
           predicates[idx] = tuple(stripped_tuple)
       print(predicates)
+
+      for row in final_row:
+        def evaluate(l):
+          for idx in range(len(l)):
+            i=l[idx]
+            if type(i) == list or (type(i) == tuple and len(i) == 2):
+                evaluate(i)
+            else:
+                if type(i) == tuple and len(i) == 3:
+                    oper = i[1]
+                    if oper in ['is','is not']:
+                      #null predicate
+                      col_name = i[0]
+                      if col_name in col_nick:
+                        col_name = col_nick[col_name]
+                      if col_name in p_col:
+                        col_name = p_col[col_name]
+                      ridx = all_cols.index(col_name)
+                      if oper == 'is':
+                        if row[ridx] == 'null':
+                          l[idx] = True
+                        else:
+                          l[idx] = False
+                      elif oper == 'is not':
+                        if row[ridx] == 'null':
+                          l[idx] = False
+                        else:
+                          l[idx] = True
+                    else:
+                      #comparison predicate
+                      two_type = []
+                      eval = [i[0],i[1],i[2]]
+                      #if val op col
+                      if i[0][0] in in ['str','int','date'] and i[2][0] == 'col':
+                        eval[0] = i[0][1]
+                        col_name = i[2][1]
+                        if col_name in col_nick:
+                          col_name = col_nick[col_name]
+                        if col_name in p_col:
+                          col_name = p_col[col_name]
+                        ridx = all_cols.index(col_name)
+                        eval[2] = row[ridx]
+                      #elif col op val
+                      elif i[2][0] in in ['str','int','date'] and i[0][0] == 'col':
+                        eval[2] = i[2][1]
+                        col_name = i[0][1]
+                        if col_name in col_nick:
+                          col_name = col_nick[col_name]
+                        if col_name in p_col:
+                          col_name = p_col[col_name]
+                        ridx = all_cols.index(col_name)
+                        eval[0] = row[ridx]
+                      #elif col op col
+                      elif i[2][0] == 'col' and i[0][0] == 'col':
+                        col_name = i[0][1]
+                        if col_name in col_nick:
+                          col_name = col_nick[col_name]
+                        if col_name in p_col:
+                          col_name = p_col[col_name]
+                        ridx = all_cols.index(col_name)
+                        eval[0] = row[ridx]
+                        col_name = i[2][1]
+                        if col_name in col_nick:
+                          col_name = col_nick[col_name]
+                        if col_name in p_col:
+                          col_name = p_col[col_name]
+                        ridx = all_cols.index(col_name)
+                        eval[2] = row[ridx]
+                      #elif val op val
+                      else:
+                        eval[0] = i[0][1]
+                        eval[2] = i[2][1]
+                      #evaluate
+                      if eval[1] == "<":
+                        if i[0] < i[2]:
+                          l[idx] = True
+                        else: 
+                          l[idx] = False
+                      if eval[1] == ">":
+                        if i[0] > i[2]:
+                          l[idx] = True
+                        else: 
+                          l[idx] = False
+                      if eval[1] == "=":
+                        if i[0] == i[2]:
+                          l[idx] = True
+                        else: 
+                          l[idx] = False
+                      if eval[1] == ">=":
+                        if i[0] >= i[2]:
+                          l[idx] = True
+                        else: 
+                          l[idx] = False
+                      if eval[1] == "<=":
+                        if i[0] <= i[2]:
+                          l[idx] = True
+                        else: 
+                          l[idx] = False
+                      if eval[1] == "!=":
+                        if i[0] != i[2]:
+                          l[idx] = True
+                        else: 
+                          l[idx] = False
+            
+        def combine(l):
+          for idx in range(len(l)):
+            i=l[idx]
+            if type(i) == list:
+              if len(i) == 1 and type(i[0]) == bool:
+                l[idx] = i[0]
+              if len(i) > 1 and i[0] == 'not' and type(i[1]) == bool:
+                l[idx] = not i[1]
+              if len(i) > 1 and i[0] == 'and' and all(type(x) == bool for x in i[1]):
+                if all(x for x in i[1]):
+                  l[idx] = True
+                else:
+                  l[idx] = False
+              elif len(i) > 1 and i[0] == 'or' and all(type(x) == bool for x in i[1]):
+                if any(x for x in i[1]):
+                  l[idx] = True
+                else:
+                  l[idx] = False
+              else:
+                combine(i)
+
+        evaluate(condition)
+        print(condition)
+        while not all(type(x) == bool for x in condition[1]):
+          combine(condition)
+          print(condition)
+        
+        print(f"row {row} condition {condition}")
+
     else:
     #without where cluase
       result = PrettyTable(columns)
