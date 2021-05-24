@@ -259,7 +259,6 @@ class MyTransformer(Transformer):
     else:
     #if col list is given, check if the cols are all right and sort by tables
       cols_copy = [ c for c in cols ]
-      print(cols, cols_copy)
       for table in tables:
         myDB = db.DB()
         myDB.open(f"db/{table}.db", dbtype=db.DB_HASH)
@@ -285,8 +284,6 @@ class MyTransformer(Transformer):
               except:
                 #if duplicate column name exist, ambiguous
                 raise SelectColumnResolveError(col)
-            print(cols)
-            print(cols_copy)
         myDB.close()
       #if not existing column
       if len(cols_copy) > 0:
@@ -294,6 +291,55 @@ class MyTransformer(Transformer):
     
     print(columns)
     print(all_cols)
+
+    #get all possible result from specified tables
+    rows = []
+    for table in tables:
+      infos = []
+      myDB = db.DB()
+      myDB.open(f"db/{table}.db", dbtype=db.DB_HASH)
+      col_names = json.loads(myDB.get(b'columns'))
+      info_list = list(map(lambda col: bytes(col, encoding="utf-8"), col_names))
+      info_list += [b'primary_key', b'foreign_key', b'referencing', b'referenced', b'columns']
+      cursor = myDB.cursor()
+      data = cursor.first()
+      while data:
+        key, value = data
+        val_dict = json.loads(value)
+        if key not in info_list:
+          info = []
+          for col in columns:
+            if len(col.split('.')) > 1:
+              t_name, col_name = col.split('.')
+              if t_name == table or (t_name in nickname and nickname[t_name] == table):
+                if val_dict[col_name] is None:
+                  info.append('null')
+                else:
+                  info.append(val_dict[col_name])
+              else:
+                info.append(None)
+            else:
+              if col in val_dict:
+                if val_dict[col] is None:
+                  info.append('null')
+                else:
+                  info.append(val_dict[col])
+              else:
+                info.append(None)
+          infos.append(info)
+        data = cursor.next()
+      myDB.close()
+      rows.append(infos)
+    #get cartesian join of the result
+    for i in range(1,len(rows)):
+      new_row = []
+      for j in range(len(rows[i])):
+        for row in rows[i-1]:
+          r = [x if y is None else y for x,y in zip(rows[i][j], row)]
+          new_row.append(r)
+      rows[i] = new_row
+    
+    final_row = [r for r in rows[i]]
 
     if where:
     #with where clause
@@ -310,7 +356,8 @@ class MyTransformer(Transformer):
       flatten(condition)
       print(predicates)
       #check if comparable
-      for p in predicates:
+      for idx in range(len(predicates)):
+        p = predicates[idx]
         oper = p[1]
         if oper in ['is','is not']:
           #null predicate
@@ -332,6 +379,8 @@ class MyTransformer(Transformer):
             c_list = json.loads(myDB.get(b'columns'))
             if c_n not in c_list:
               raise WhereColumnNotExist()
+            else:
+              predicates[idx] = (f"{t_n}.{c_n}",p[1],p[2])
             myDB.close()
           else:
             Find = False
@@ -345,16 +394,18 @@ class MyTransformer(Transformer):
                   raise WhereAmbiguousReference()
                 else:
                   Find = True
+                  predicates[idx] = (f"{t_n}.{col_name}",p[1],p[2])
               myDB.close()
             if not Find:
               raise WhereColumnNotExist()
         else:
           #comparison predicate
           two_type = []
-          print(two_type)
+          stripped_tuple = [p[0],p[1],p[2]]
           for op_idx in (0,2):
             if p[op_idx][0] in ['str','int','date']:
               two_type.append(p[op_idx][0])
+              stripped_tuple[op_idx] = p[op_idx][1]
             else:
               #if col name, check if valid col name
               col_name = p[op_idx][1]
@@ -374,6 +425,7 @@ class MyTransformer(Transformer):
                 c_list = json.loads(myDB.get(b'columns'))
                 if c_n in c_list:
                   #find it
+                  stripped_tuple[op_idx] = f"{t_n}.{c.n}"
                   type_s = json.loads(myDB.get(c_n.encode('utf-8')))['type']
                   if type_s in ['int','date']:
                     two_type.append(type_s)
@@ -396,6 +448,7 @@ class MyTransformer(Transformer):
                       raise WhereAmbiguousReference()
                     else:
                       Find = True
+                      stripped_tuple[op_idx] = f"{t_n}.{col_name}"
                       type_s = json.loads(myDB.get(col_name.encode('utf-8')))['type']
                       if type_s in ['int','date']:
                         find_type = type_s
@@ -410,55 +463,12 @@ class MyTransformer(Transformer):
           if len(two_type) == 2:
             if two_type[0] != two_type[1]:
               raise WhereIncomparableError()
-
+          predicates[idx] = tuple(stripped_tuple)
+      print(predicates)
     else:
     #without where cluase
       result = PrettyTable(columns)
-      rows = []
-      for table in tables:
-        infos = []
-        myDB = db.DB()
-        myDB.open(f"db/{table}.db", dbtype=db.DB_HASH)
-        col_names = json.loads(myDB.get(b'columns'))
-        info_list = list(map(lambda col: bytes(col, encoding="utf-8"), col_names))
-        info_list += [b'primary_key', b'foreign_key', b'referencing', b'referenced', b'columns']
-        cursor = myDB.cursor()
-        data = cursor.first()
-        while data:
-          key, value = data
-          val_dict = json.loads(value)
-          if key not in info_list:
-            info = []
-            for col in columns:
-              if len(col.split('.')) > 1:
-                t_name, col_name = col.split('.')
-                if t_name == table or (t_name in nickname and nickname[t_name] == table):
-                  if val_dict[col_name] is None:
-                    info.append('null')
-                  else:
-                    info.append(val_dict[col_name])
-                else:
-                  info.append(None)
-              else:
-                if col in val_dict:
-                  if val_dict[col] is None:
-                    info.append('null')
-                  else:
-                    info.append(val_dict[col])
-                else:
-                  info.append(None)
-            infos.append(info)
-          data = cursor.next()
-        myDB.close()
-        rows.append(infos)
-      for i in range(1,len(rows)):
-        new_row = []
-        for j in range(len(rows[i])):
-          for row in rows[i-1]:
-            r = [x if y is None else y for x,y in zip(rows[i][j], row)]
-            new_row.append(r)
-        rows[i] = new_row
-      for r in rows[-1]:
+      for r in final_row:
         result.add_row(r)
       print(result)
 
@@ -522,9 +532,9 @@ class MyTransformer(Transformer):
 
   def boolean_factor(self, items):
     if len(items) > 1:
-      return (False, items[-1])
+      return [False, items[-1]]
     else:
-      return (True, items[-1])
+      return [True, items[-1]]
 
   def select_list(self, items):
     col_sel = []
