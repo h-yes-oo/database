@@ -967,16 +967,254 @@ class MyTransformer(Transformer):
           data = cursor.next()
       #with where clause
       else:
-        where = items[3]
-        print(where)
+        condition = items[3]
+        predicates = []
+        p_col = []
+        def flatten(l):
+            for i in l:
+                if type(i) == list or (type(i) == tuple and len(i) == 2):
+                    flatten(i)
+                else:
+                    if type(i) == tuple and len(i) == 3:
+                      predicates.append(i)
+        flatten(condition)
+        #check if comparable
+        for idx in range(len(predicates)):
+          p = predicates[idx]
+          oper = p[1]
+          if oper in ['is','is not']:
+            #null predicate
+            #find if the col name is valid
+            col_name = p[0]
+            if len(col_name.split('.')) > 1:
+              t_n , c_n = col_name.split('.')
+              #check if specified table
+              if t_n != table_name:
+                raise WhereTableNotSpecified()
+              #check if the col exist
+              c_list = json.loads(myDB.get(b'columns'))
+              if c_n not in c_list:
+                raise WhereColumnNotExist()
+              else:
+                predicates[idx] = (f"{t_n}.{c_n}",p[1],p[2])
+                p_col.append(c_n)
+              myDB.close()
+            else:
+              c_list = json.loads(myDB.get(b'columns'))
+              if col_name in c_list:
+                  predicates[idx] = (f"{t_n}.{col_name}",p[1],p[2])
+                  p_col.append(col_name)
+              else:
+                raise WhereColumnNotExist()
+          else:
+            #comparison predicate
+            two_type = []
+            for op_idx in (0,2):
+              if p[op_idx][0] in ['str','int','date']:
+                two_type.append(p[op_idx][0])
+              else:
+                #if col name, check if valid col name
+                col_name = p[op_idx][1]
+                if len(col_name.split('.')) > 1:
+                  t_n , c_n = col_name.split('.')
+                  #check if specified table
+                  if t_n != table_name:
+                    raise WhereTableNotSpecified()
+                  else:
+                    c_list = json.loads(myDB.get(b'columns'))
+                    if c_n in c_list:
+                      #find it
+                      p_col.append(c_n)
+                      type_s = json.loads(myDB.get(c_n.encode('utf-8')))['type']
+                      if type_s in ['int','date']:
+                        two_type.append(type_s)
+                      else:
+                        two_type.append('str')
+                    else:
+                      raise WhereColumnNotExist()
+                else:
+                  find_type = ''
+                  c_list = json.loads(myDB.get(b'columns'))
+                  if col_name in c_list:
+                    p_col.append(col_name)
+                    type_s = json.loads(myDB.get(col_name.encode('utf-8')))['type']
+                    if type_s in ['int','date']:
+                      find_type = type_s
+                    else:
+                      find_type = 'str'
+                    two_type.append(find_type)
+                  else:
+                    raise WhereColumnNotExist()
+            if len(two_type) == 2:
+              if two_type[0] != two_type[1]:
+                raise WhereIncomparableError()
+
+        #iterate through all data in this table
         cursor = myDB.cursor()
         data = cursor.first()
         while data:
           key, value = data
           if key not in info_list:
-            print(data)
-            #myDB.delete(key)
+          #check if this satify where clause
+            cond = copy.deepcopy(condition)
+
+            def evaluate(l,value_dict):
+              for idx in range(len(l)):
+                i=l[idx]
+                if type(i) == list or (type(i) == tuple and len(i) == 2):
+                    evaluate(i,value_dict)
+                else:
+                    if type(i) == tuple and len(i) == 3:
+                        oper = i[1]
+                        if oper in ['is','is not']:
+                          #null predicate
+                          col_name = i[0].split('.')[-1]
+                          if oper == 'is':
+                            if value_dict[col_name] is None:
+                              l[idx] = True
+                            else:
+                              l[idx] = False
+                          elif oper == 'is not':
+                            if value_dict[col_name] is not None:
+                              l[idx] = True
+                            else:
+                              l[idx] = False
+                        else:
+                          #comparison predicate
+                          two_type = []
+                          eval = [i[0],i[1],i[2]]
+                          #if val op col
+                          if i[0][0] in ['str','int','date'] and i[2][0] == 'col':
+                            eval[0] = i[0][1]
+                            col_name = i[2][1].split('.')[-1]
+                            eval[2] = value_dict[col_name]
+                          #elif col op val
+                          elif i[2][0] in ['str','int','date'] and i[0][0] == 'col':
+                            eval[2] = i[2][1]
+                            col_name = i[0][1].split('.')[-1]
+                            eval[0] = value_dict[col_name]
+                          #elif col op col
+                          elif i[2][0] == 'col' and i[0][0] == 'col':
+                            col_name = i[0][1].split('.')[-1]
+                            eval[0] = value_dict[col_name]
+                            col_name = i[2][1].split('.')[-1]
+                            eval[2] = value_dict[col_name]
+                          #elif val op val
+                          else:
+                            eval[0] = i[0][1]
+                            eval[2] = i[2][1]
+                          #evaluate
+                          if eval[1] == "<":
+                            if eval[0] < eval[2]:
+                              l[idx] = True
+                            else: 
+                              l[idx] = False
+                          if eval[1] == ">":
+                            if eval[0] > eval[2]:
+                              l[idx] = True
+                            else: 
+                              l[idx] = False
+                          if eval[1] == "=":
+                            if eval[0] == eval[2]:
+                              l[idx] = True
+                            else: 
+                              l[idx] = False
+                          if eval[1] == ">=":
+                            if eval[0] >= eval[2]:
+                              l[idx] = True
+                            else: 
+                              l[idx] = False
+                          if eval[1] == "<=":
+                            if eval[0] <= eval[2]:
+                              l[idx] = True
+                            else: 
+                              l[idx] = False
+                          if eval[1] == "!=":
+                            if eval[0] != eval[2]:
+                              l[idx] = True
+                            else: 
+                              l[idx] = False
+            def combine(l):
+              for idx in range(len(l)):
+                i=l[idx]
+                if type(i) == list:
+                  if len(i) == 1 and type(i[0]) == bool:
+                    l[idx] = i[0]
+                  if len(i) > 1 and i[0] == 'not' and type(i[1]) == bool:
+                    l[idx] = not i[1]
+                  if len(i) > 1 and i[0] == 'and' and all(type(x) == bool for x in i[1]):
+                    if all(x for x in i[1]):
+                      l[idx] = True
+                    else:
+                      l[idx] = False
+                  elif len(i) > 1 and i[0] == 'or' and all(type(x) == bool for x in i[1]):
+                    if any(x for x in i[1]):
+                      l[idx] = True
+                    else:
+                      l[idx] = False
+                  else:
+                    combine(i)
+
+            evaluate(cond, json.loads(value))
+            while not all(type(x) == bool for x in cond[1]):
+              combine(cond)
+
+            if any(x for x in cond[1]):
+            #satisfy where clause!!
+              #find if this data can be deleted
+              referenced = json.loads(value)['referenced']
+              can_delete = True
+              for rf in referenced:
+                rf_table = rf[0]
+                if ref_info[rf_table] == False:
+                  can_delete = False
+              if can_delete:
+                  #delete this data from referenced
+                  for rf in referenced:
+                    rf_table = rf[0]
+                    rf_key = json.dumps(rf[1]).encode('utf-8')
+                    rfDB = db.DB()
+                    rfDB.open(f"db/{rf_table}.db", dbtype=db.DB_HASH)
+                    rf_dict = json.loads(rfDB.get(rf_key))
+                    #remove this value from 'referencing' of referenced value
+                    rf_referencing = rf_dict['referencing']
+                    def checkThis(x):
+                      return not (json.dumps(x[1]).encode('utf-8') == key and x[0] == table_name)
+                    rf_referencing = list(filter(checkThis, rf_referencing))
+                    rf_dict['referencing'] = rf_referencing
+                    #change all referenced col values to null
+                    ref_col = ref_colnames[rf_table]
+                    for col in ref_col:
+                      rf_dict[col] = None
+                    #store edited value
+                    rfDB.put(rf_key, json.dumps(rf_dict).encode('utf-8'))
+                    rfDB.close()
+
+                  #delete this data from referencing
+                  referencing = json.loads(value)['referencing']
+                  for rfc in referencing:
+                    rfc_table = rfc[0]
+                    rfc_key = json.dumps(rfc[1]).encode('utf-8')
+                    rfcDB = db.DB()
+                    rfcDB.open(f"db/{rfc_table}.db", dbtype=db.DB_HASH)
+                    rfc_dict = json.loads(rfcDB.get(rfc_key))
+                    #remove this value from 'referenced' of referencing value
+                    rfc_referenced = rfc_dict['referenced']
+                    def checkThis(x):
+                      return not (json.dumps(x[1]).encode('utf-8') == key and x[0] == table_name)
+                    rfc_referenced = list(filter(checkThis, rfc_referenced))
+                    rfc_dict['referenced'] = rfc_referenced
+                    #store edited value
+                    rfcDB.put(rfc_key, json.dumps(rfc_dict).encode('utf-8'))
+                    rfcDB.close()
+                  #delete this value from database
+                  myDB.delete(key)
+                  yes_count += 1
+              else:
+                #cannot delete this value due to referential integrity
+                no_count += 1
           data = cursor.next()
+
       myDB.close()
       print(prompt,f"{yes_count} row(s) are deleted", sep='')
       if no_count > 0:
