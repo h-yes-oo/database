@@ -245,25 +245,20 @@ class MyTransformer(Transformer):
       if table not in existing_tables:
         raise SelectTableExistenceError(table)
     columns = []
-    # if col list is *, add all columns of tables
-    if len(cols) == 0:
-      col_table = []
-      for table in tables:
+    all_cols = []
+    for table in tables:
         myDB = db.DB()
         myDB.open(f"db/{table}.db", dbtype=db.DB_HASH)
         col_names = json.loads(myDB.get(b'columns'))
         for col in col_names:
-          if col in columns:
-            dup_idx = columns.index(col)
-            columns[dup_idx] = f"{col_table[dup_idx]}.{col}"
-            columns.append(f"{table}.{col}")
-            col_table.append(table)
-          else:
-            columns.append(col)
-            col_table.append(table)
+          all_cols.append(f"{table}.{col}")
         myDB.close()
+    # if col list is *, add all columns of tables
+    if len(cols) == 0:
+      columns = all_cols
     else:
     #if col list is given, check if the cols are all right and sort by tables
+      cols_copy = cols
       for table in tables:
         myDB = db.DB()
         myDB.open(f"db/{table}.db", dbtype=db.DB_HASH)
@@ -271,26 +266,32 @@ class MyTransformer(Transformer):
         for col in cols:
           col_info = col.split('.')
           if len(col_info) > 1:
-            if col_info[0] == table or nickname[col_info[0]] == table:
+            if col_info[0] == table or (col_info[0] in nickname and nickname[col_info[0]] == table):
               if col_info[1] in col_names:
-                columns.append(col)
+                columns.append(f"{table}.{col}")
+                try:
+                  cols_copy.remove(col)
+                except:
+                  #if duplicate column name exist, ambiguous
+                  raise SelectColumnResolveError(col)
               else:
                 raise SelectColumnResolveError(col)
           else:
             if col in col_names:
-              columns.append(col)
+              columns.append(f"{table}.{col}")
+              try:
+                cols_copy.remove(col)
+              except:
+                #if duplicate column name exist, ambiguous
+                raise SelectColumnResolveError(col)
         myDB.close()
       #if not existing column
-      for col in cols:
-        if col not in columns:
-          raise SelectColumnResolveError(col)
-      #if duplicate column name exist, ambiguous
-      if len(cols) < len(columns):
-        copy = columns
-        for c in cols:
-          copy.remove(c)
-        raise SelectColumnResolveError(copy[0])
+      if len(cols_copy) > 0:
+        raise SelectColumnResolveError(cols_copy[0])
     
+    print(columns)
+    print(all_cols)
+
     if where:
     #with where clause
       condition = table_expression[1][1]
@@ -312,13 +313,13 @@ class MyTransformer(Transformer):
           #null predicate
           #find if the col name is valid
           col_name = p[0]
-          if col_nick[col_name] is not None:
+          if col_name in col_nick:
             col_name = col_nick[col_name]
           if len(col_name.split('.')) > 1:
             t_n , c_n = col_name.split('.')
             #check if specified table
             if t_n not in tables:
-              if ninkname[t_n] is None:
+              if t_n not in nickname:
                 raise WhereTableNotSpecified()
               else:
                 t_n = nickname[t_n]
@@ -354,16 +355,13 @@ class MyTransformer(Transformer):
             else:
               #if col name, check if valid col name
               col_name = p[op_idx][1]
-              print(col_nick)
-              if len(col_nick) > 0 and col_nick[col_name] is not None:
-                print('hi')
+              if col_name in col_nick:
                 col_name = col_nick[col_name]
-              print('hihi')
               if len(col_name.split('.')) > 1:
                 t_n , c_n = col_name.split('.')
                 #check if specified table
                 if t_n not in tables:
-                  if ninkname[t_n] is None:
+                  if t_n not in nickname:
                     raise WhereTableNotSpecified()
                   else:
                     t_n = nickname[t_n]
@@ -431,7 +429,7 @@ class MyTransformer(Transformer):
             for col in columns:
               if len(col.split('.')) > 1:
                 t_name, col_name = col.split('.')
-                if t_name == table or nickname[t_name] == table:
+                if t_name == table or (t_name in nickname and nickname[t_name] == table):
                   if val_dict[col_name] is None:
                     info.append('null')
                   else:
