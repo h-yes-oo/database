@@ -19,6 +19,10 @@ create table enrolls (
 
 insert into students values(1);
 insert into students values(2);
+insert into students values(3);
+insert into students values(4);
+insert into students values(5);
+insert into students values(6);
 
 insert into class values(5);
 insert into class values(6);
@@ -26,6 +30,9 @@ insert into class values(6);
 insert into enrolls values(1,'hihi',6);
 insert into enrolls values(1,'hihello',5);
 insert into enrolls values(2,'lec6',5);
+insert into enrolls values(3,'hihi3',6);
+insert into enrolls values(4,'hi44',5);
+insert into enrolls values(5,'leadfa',5);
 
 select * from class, enrolls;
 

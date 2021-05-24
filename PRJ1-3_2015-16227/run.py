@@ -289,9 +289,6 @@ class MyTransformer(Transformer):
       #if not existing column
       if len(cols_copy) > 0:
         raise SelectColumnResolveError(cols_copy[0])
-    
-    print(columns)
-    print(all_cols)
 
     #get all possible result from specified tables
     rows = []
@@ -345,7 +342,6 @@ class MyTransformer(Transformer):
     if where:
     #with where clause
       condition = table_expression[1][1]
-      print(condition)
       predicates = []
       p_col = {}
       def flatten(l):
@@ -439,7 +435,6 @@ class MyTransformer(Transformer):
                   raise WhereColumnNotExist()
                 myDB.close()
               else:
-                print(two_type)
                 Find = False
                 find_type = ''
                 for t_n in tables:
@@ -464,12 +459,10 @@ class MyTransformer(Transformer):
                   two_type.append(find_type)
                 else:
                   raise WhereColumnNotExist()
-          print(two_type)
           if len(two_type) == 2:
             if two_type[0] != two_type[1]:
               raise WhereIncomparableError()
           predicates[idx] = tuple(stripped_tuple)
-      print(predicates)
 
       final = []
 
@@ -546,7 +539,6 @@ class MyTransformer(Transformer):
                         eval[0] = i[0][1]
                         eval[2] = i[2][1]
                       #evaluate
-                      print(f"row {row} eval {eval}")
                       if eval[1] == "<":
                         if eval[0] < eval[2]:
                           l[idx] = True
@@ -602,9 +594,8 @@ class MyTransformer(Transformer):
         evaluate(cond,row)
         while not all(type(x) == bool for x in cond[1]):
           combine(cond)
-        
-        print(f"row {row} condition {cond}")
-        if all(x for x in cond[1]):
+
+        if any(x for x in cond[1]):
           final.append(row)
       
       result = PrettyTable(columns)
@@ -646,10 +637,10 @@ class MyTransformer(Transformer):
     return items[1]
   
   def boolean_expr(self, items):
-    return ['and',items[0::2]]
+    return ['or',items[0::2]]
 
   def boolean_term(self, items):
-    return ['or',items[0::2]]
+    return ['and',items[0::2]]
 
   def comparison_predicate(self, items):
     return tuple(items)
@@ -670,7 +661,7 @@ class MyTransformer(Transformer):
         return ('col',items[0])
   
   def COMP_OP(self, items):
-    return items[0]
+    return items
   
   def predicate(self, items):
     return items[0]
@@ -976,13 +967,15 @@ class MyTransformer(Transformer):
           data = cursor.next()
       #with where clause
       else:
+        where = items[3]
+        print(where)
         cursor = myDB.cursor()
         data = cursor.first()
         while data:
           key, value = data
           if key not in info_list:
             print(data)
-            myDB.delete(key)
+            #myDB.delete(key)
           data = cursor.next()
       myDB.close()
       print(prompt,f"{yes_count} row(s) are deleted", sep='')
