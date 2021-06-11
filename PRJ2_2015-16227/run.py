@@ -132,16 +132,58 @@ def check_seat(cursor, pid, seat):
   return True
 
 def reserve(cursor, pid, aid, seat):
-  add_performance = ("INSERT INTO performance "
-               "(name, type, price) "
+  add_performance = ("INSERT INTO reservation "
+               "(audience, performance, seat) "
                "VALUES (%s, %s, %s)" )
-  data_performance = (name, ptype, price)
+  data_performance = (aid, pid, seat)
   cursor.execute(add_performance, data_performance)
   connection.commit()
 
+def print_line():
+  print("-----------------------------------------------------------------------------------")
 
-def print_all(cursor, what):
-    cursor.execute("SELECT * FROM building")
+
+def print_building(curA, curB):
+  print_line()
+  print("%-8s %-30s %-16s %-16s %-16s" %('id','name','location','capacity','assigned'))
+  print_line()
+  curA.execute("SELECT * FROM building ORDER BY id")
+  result = curA.fetchall()
+  for data in result:
+    count_query = ("SELECT COUNT(id) FROM performance WHERE building = %s")
+    curB.execute(count_query, (data['id'], ))
+    for x in curB:
+      print("%-8s %-30s %-16s %-16s %-16s" %(
+        data['id'], data['name'], data['location'], data['capacity'], x[0]
+      ))
+  print_line()
+
+def print_performance(curA, curB):
+  print_line()
+  print("%-8s %-30s %-16s %-16s %-16s" %('id','name','type','price','booked'))
+  print_line()
+  curA.execute("SELECT * FROM performance ORDER BY id")
+  result = curA.fetchall()
+  for data in result:
+    count_query = ("SELECT COUNT(id) FROM reservation WHERE performance = %s")
+    curB.execute(count_query, (data['id'], ))
+    for x in curB:
+      print("%-8s %-30s %-16s %-16s %-16s" %(
+        data['id'], data['name'], data['type'], data['price'], x[0]
+      ))
+  print_line()
+
+def print_audience(cursor):
+  print_line()
+  print("%-8s %-36s %-22s %-20s" %('id','name','gender','age'))
+  print_line()
+  cursor.execute("SELECT * FROM audience ORDER BY id")
+  result = cursor.fetchall()
+  for data in result:
+    print("%-8s %-36s %-22s %-20s" %(
+      data['id'], data['name'], data['gender'], data['age']
+    ))
+  print_line()
 
 
 def refresh(cursor, tables):
@@ -151,22 +193,33 @@ def refresh(cursor, tables):
   create_tables(cursor,tables)
 
 
-cursor = connection.cursor(dictionary=True, buffered=True)
+curA = connection.cursor(dictionary=True, buffered=True)
+curB = connection.cursor(dictionary=False, buffered=True)
 
 try:
-    refresh(cursor, TABLES)
-    insert_building(cursor, 'b1', 'l1', 10)
-    insert_building(cursor, 'b2', 'l2', 20)
-    insert_performance(cursor, 'chicago','musical', 100000)
-    insert_audience(cursor, 'hyesoo', 'F', 26)
-    assign_p_to_b(cursor, 1, 2)
-    cursor.execute("SELECT * FROM performance")
-    result = cursor.fetchall()
-    check_seat(cursor, 1, 1)
+    refresh(curA, TABLES)
+    insert_building(curA, 'b1', 'l1', 10)
+    insert_building(curA, 'b2', 'l2', 20)
+    insert_performance(curA, 'chicago','musical', 100000)
+    insert_performance(curA, 'haha', 'drama', 1400)
+    insert_audience(curA, 'hyesoo', 'F', 26)
+    assign_p_to_b(curA, 1, 2)
+    assign_p_to_b(curA, 2, 1)
+    reserve(curA,1, 1, 1)
+    reserve(curA,1, 1, 2)
+    reserve(curA,1, 1, 3)
+    curA.execute("SELECT * FROM reservation")
+    result = curA.fetchall()
     print(result)
+    check_seat(curA, 1, 1)
+    print_building(curA, curB)
+    print_performance(curA, curB)
+    print_audience(curA)
+
 except mysql.connector.Error as err:
     print(err)
     exit(1)
 
-cursor.close()
+curA.close()
+curB.close()
 connection.close()
