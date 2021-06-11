@@ -142,7 +142,6 @@ def reserve(cursor, pid, aid, seat):
 def print_line():
   print("-----------------------------------------------------------------------------------")
 
-
 def print_building(curA, curB):
   print_line()
   print("%-8s %-30s %-16s %-16s %-16s" %('id','name','location','capacity','assigned'))
@@ -158,12 +157,37 @@ def print_building(curA, curB):
       ))
   print_line()
 
-def print_performance(curA, curB):
+def print_audience(result):
+  print_line()
+  print("%-8s %-36s %-22s %-20s" %('id','name','gender','age'))
+  print_line()
+  for data in result:
+    print("%-8s %-36s %-22s %-20s" %(
+      data['id'], data['name'], data['gender'], data['age']
+    ))
+  print_line()
+
+def print_audience_all(cursor):
+  cursor.execute("SELECT * FROM audience ORDER BY id")
+  result = cursor.fetchall()
+  print_audience(result)
+
+def print_audience_of_performance(cursor, pid):
+  select_query = (
+    "SELECT * FROM audience "
+    "WHERE id IN ("
+    "SELECT DISTINCT audience FROM reservation "
+    "WHERE performance = %s) "
+    "ORDER BY id"
+  )
+  cursor.execute(select_query, (pid,))
+  result = cursor.fetchall()
+  print_audience(result)
+
+def print_performance(curB, result):
   print_line()
   print("%-8s %-30s %-16s %-16s %-16s" %('id','name','type','price','booked'))
   print_line()
-  curA.execute("SELECT * FROM performance ORDER BY id")
-  result = curA.fetchall()
   for data in result:
     count_query = ("SELECT COUNT(id) FROM reservation WHERE performance = %s")
     curB.execute(count_query, (data['id'], ))
@@ -173,24 +197,31 @@ def print_performance(curA, curB):
       ))
   print_line()
 
-def print_audience(cursor):
-  print_line()
-  print("%-8s %-36s %-22s %-20s" %('id','name','gender','age'))
-  print_line()
-  cursor.execute("SELECT * FROM audience ORDER BY id")
-  result = cursor.fetchall()
-  for data in result:
-    print("%-8s %-36s %-22s %-20s" %(
-      data['id'], data['name'], data['gender'], data['age']
-    ))
-  print_line()
+def print_performance_all(curA, curB):
+  curA.execute("SELECT * FROM performance ORDER BY id")
+  result = curA.fetchall()
+  print_performance(curB, result)
 
+def print_performance_of_building(curA, curB, bid):
+  select_query = (
+    "SELECT * FROM performance "
+    "WHERE building = %s ORDER BY id"
+  )
+  curA.execute(select_query, (bid,))
+  result = curA.fetchall()
+  print_performance(curB, result)
 
 def refresh(cursor, tables):
   for table_name in ['reservation', 'audience', 'performance','building']:
     sql = "DROP TABLE IF EXISTS %s" % table_name
     cursor.execute(sql)
   create_tables(cursor,tables)
+
+def delete(cursor, table, did):
+  delete_query = (
+    "DELETE FROM {} WHERE id = %s".format(table)
+  )
+  cursor.execute(delete_query,(did,))
 
 
 curA = connection.cursor(dictionary=True, buffered=True)
@@ -203,18 +234,22 @@ try:
     insert_performance(curA, 'chicago','musical', 100000)
     insert_performance(curA, 'haha', 'drama', 1400)
     insert_audience(curA, 'hyesoo', 'F', 26)
+    insert_audience(curA, 'sangwoo', 'M', 26)
     assign_p_to_b(curA, 1, 2)
     assign_p_to_b(curA, 2, 1)
     reserve(curA,1, 1, 1)
     reserve(curA,1, 1, 2)
-    reserve(curA,1, 1, 3)
+    reserve(curA,1, 2, 3)
+    check_seat(curA, 1, 1)
+    print_building(curA, curB)
+    print_performance_all(curA, curB)
+    print_audience(curA)
+    print_performance_of_building(curA, curB, 2)
+    print_audience_of_performance(curA, 1)
+
     curA.execute("SELECT * FROM reservation")
     result = curA.fetchall()
     print(result)
-    check_seat(curA, 1, 1)
-    print_building(curA, curB)
-    print_performance(curA, curB)
-    print_audience(curA)
 
 except mysql.connector.Error as err:
     print(err)
