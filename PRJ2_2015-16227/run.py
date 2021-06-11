@@ -3,14 +3,24 @@ import mysql.connector
 from mysql.connector import connect
 from mysql.connector import errorcode
 
-connection = connect(
-  host='astronaut.snu.ac.kr',
-  port=7000,
-  user='DB2015_16227',
-  password='DB2015_16227',
-  db='DB2015_16227',
-  charset='utf8'
-)
+try:
+  connection = connect(
+    host='astronaut.snu.ac.kr',
+    port=7000,
+    user='DB2015_16227',
+    password='DB2015_16227',
+    db='DB2015_16227',
+    charset='utf8'
+  )
+except:
+  connection = connect(
+    host='astronaut.snu.ac.kr',
+    port=7000,
+    user='DB2015_16227',
+    password='DB2015_16227',
+    db='DB2015_16227',
+    charset='utf8'
+  )
 #make table schemas
 
 TABLES = {}
@@ -68,7 +78,6 @@ def create_tables(cursor, tables):
       else:
         print(err.msg)
 
-
 def insert_building(cursor, name, location, capacity):
   add_building = ("INSERT INTO building "
                "(name, location, capacity) "
@@ -100,7 +109,7 @@ def check_building_assigned(cursor, pid):
   )
   cursor.execute(check, (pid,))
   for data in cursor:
-    #if assigned, return false
+    #if not assigned, return false
     if data['building'] is None:
       return False
     else:
@@ -111,25 +120,38 @@ def assign_p_to_b(cursor, pid, bid):
   check = check_building_assigned(cursor,pid)
   if(check):
     print("Performance %d is already assigned" % (pid))
-    return
+    return False
   #if function not returned, assign performance to building
   update = (
     "UPDATE performance SET building = %s "
     "WHERE id = %s"
   )
   cursor.execute(update, (bid, pid))
-  connection.commit()
+  return True
 
-def check_seat(cursor, pid, seat):
+
+def check_by_id(cursor, table, bid):
+  check = (
+    "SELECT 1 FROM {} WHERE id = %s".format(table)
+  )
+  cursor.execute(check,(bid, ))
+  result = cursor.fetchall()
+  if len(result) > 0:
+    return True
+  else:
+    return False
+
+def seat_taken(cursor, pid, seat):
   check = (
     "SELECT 1 FROM reservation WHERE performance = %s AND seat = %s"
   )
   cursor.execute(check,(pid, seat))
-  #if there exists data in cursor, it means the seat of the performance is already taken
-  for data in cursor:
+  result = cursor.fetchall()
+  if len(result) > 0:
     print("The seat is already taken")
+    return True
+  else:
     return False
-  return True
 
 def reserve(cursor, pid, aid, seat):
   add_performance = ("INSERT INTO reservation "
@@ -211,6 +233,36 @@ def print_performance_of_building(curA, curB, bid):
   result = curA.fetchall()
   print_performance(curB, result)
 
+def get_capacity(curB, pid):
+  select_query = (
+    "SELECT capacity FROM building "
+    "WHERE id = ("
+    "SELECT building FROM performance "
+    "WHERE id = %s)"
+  )
+  curB.execute(select_query, (pid, ))
+  result = curB.fetchall()
+  capacity = result[0][0]
+  return capacity
+
+def print_seat_of_performance(curB, pid):
+  capacity = get_capacity(curB, pid)
+  print_line()
+  print("%-40s %-40s" %('seat_number', 'audience_id'))
+  print_line()
+  for seat in range(1,capacity+1):
+    find_query = (
+      "SELECT audience FROM reservation "
+      "WHERE performance = %s and seat = %s"
+    )
+    curB.execute(find_query, (pid, seat))
+    result = curB.fetchall()
+    if(len(result) == 0):
+      print("%-40d" %(seat))
+    else:
+      print("%-40d %-40d" %(seat, result[0][0]))
+  print_line()
+
 def refresh(cursor, tables):
   for table_name in ['reservation', 'audience', 'performance','building']:
     sql = "DROP TABLE IF EXISTS %s" % table_name
@@ -223,38 +275,245 @@ def delete(cursor, table, did):
   )
   cursor.execute(delete_query,(did,))
 
+def can_reserve(curB, seat_list, pid):
+  capacity = get_capacity(curB, pid)
+  for seat in seat_list:
+    if seat > capacity:
+      print("Seat number out of range")
+      return False
+  for seat in seat_list:
+   if seat_taken(curB, pid, seat):
+     return False
+  return True
+
+def get_ticket_price(curB, pid, aid):
+  age_query = (
+    "SELECT age FROM audience "
+    "WHERE id = %s"
+  )
+  curB.execute(age_query, (aid,))
+  age_result = curB.fetchall()
+  age = age_result[0][0]
+  if age <= 7:
+    return 0
+  price_query = (
+    "SELECT price FROM performance "
+    "WHERE id = %s"
+  )
+  curB.execute(price_query, (pid,))
+  price_result = curB.fetchall()
+  price = price_result[0][0]
+  if 8 <= age and age <= 12:
+    return price * 0.5
+  elif 13 <= age and age <= 18:
+    return price * 0.8
+  else:
+    return price
 
 curA = connection.cursor(dictionary=True, buffered=True)
 curB = connection.cursor(dictionary=False, buffered=True)
 
-try:
-    refresh(curA, TABLES)
-    insert_building(curA, 'b1', 'l1', 10)
-    insert_building(curA, 'b2', 'l2', 20)
-    insert_performance(curA, 'chicago','musical', 100000)
-    insert_performance(curA, 'haha', 'drama', 1400)
-    insert_audience(curA, 'hyesoo', 'F', 26)
-    insert_audience(curA, 'sangwoo', 'M', 26)
-    assign_p_to_b(curA, 1, 2)
-    assign_p_to_b(curA, 2, 1)
-    reserve(curA,1, 1, 1)
-    reserve(curA,1, 1, 2)
-    reserve(curA,1, 2, 3)
-    check_seat(curA, 1, 1)
-    print_building(curA, curB)
-    print_performance_all(curA, curB)
-    print_audience(curA)
-    print_performance_of_building(curA, curB, 2)
-    print_audience_of_performance(curA, 1)
+info_message = '''
+============================================================ 
+1. print all buildings
+2. print all performances
+3. print all audiences
+4. insert a new building
+5. remove a building
+6. insert a new performance
+7. remove a performance
+8. insert a new audience
+9. remove an audience
+10. assign a performance to a building
+11. book a performance
+12. print all performances which assigned at a building
+13. print all audiences who booked for a performance
+14. print ticket booking status of a performance
+15. exit
+16. reset database
+============================================================
+'''
 
-    curA.execute("SELECT * FROM reservation")
-    result = curA.fetchall()
-    print(result)
+invalid_message = "Invalid action"
 
-except mysql.connector.Error as err:
-    print(err)
-    exit(1)
+print(info_message)
+while(True):
+  print(" ")
+  try:
+    action = int(input("Select your action: "))
+    if action >= 17 or action <= 0:
+      print(invalid_message)
+    else:
+      if action == 1:
+        print_building(curA, curB)
+      elif action == 2:
+        print_performance_all(curA, curB)
+      elif action == 3:
+        print_audience_all(curA)
+      elif action == 4:
+        name = input("Building name: ")
+        location = input("Building location: ")
+        try:
+          capacity = int(input("Building capacity: "))
+          if capacity <= 0:
+            print("Capacity should be more than 0")
+            continue
+          else:
+            insert_building(curA, name, location, capacity)
+            connection.commit()
+            print("A building is successfully inserted")
+        except:
+          print("Invalid input")
+          continue
+      elif action == 5:
+        try:
+          bid = int(input("Building id: "))
+          if(check_by_id(curA, 'building', bid)):
+            delete(curA, 'building', bid)
+            print("A building is successfully removed")
+          else:
+            print("Building {} doesn’t exist".format(bid))
+        except:
+          print("Invalid input")
+
+      elif action == 6:
+        name = input("Performance name: ")
+        ptype = input("Performance type: ")
+        try:
+          price = int(input("Performance price: "))
+          if price < 0:
+            print("Price should be 0 or more")
+            continue
+          else:
+            insert_performance(curA, name, ptype, price)
+            connection.commit()
+            print("A performance is successfully inserted")
+        except:
+          print("Invalid input")
+          continue
+
+      elif action == 7:
+        try:
+          pid = int(input("Performance id: "))
+          if(check_by_id(curA, 'performance', pid)):
+            delete(curA, 'performance', pid)
+            print("A performance is successfully removed")
+          else:
+            print("Performance {} doesn’t exist".format(pid))
+        except:
+          print("Invalid input")
+      
+      elif action == 8:
+        name = input("Audience name: ")
+        gender = input("Audience type: ")
+        if gender != "M" and gender != "F":
+          print("Gender should be 'M' or 'F'")
+          continue
+        try:
+          age = int(input("Audience age: "))
+          if age < 0:
+            print("Age should be 0 or more")
+            continue
+          else:
+            insert_audience(curA, name, gender, age)
+            connection.commit()
+            print("An audience is successfully inserted")
+        except:
+          print("Invalid input")
+          continue
+      
+      elif action == 9:
+        try:
+          aid = int(input("Audience id: "))
+          if(check_by_id(curA, 'audience', aid)):
+            delete(curA, 'audience', aid)
+            print("An audience is successfully removed")
+          else:
+            print("Audience {} doesn’t exist".format(aid))
+        except:
+          print("Invalid input")
+      
+      elif action == 10:
+        try:
+          bid = int(input("Building ID: "))
+          if not check_by_id(curA, 'building', bid):
+            print("Building {} doesn’t exist".format(bid))
+            continue
+          pid = int(input("Performance ID: "))
+          if not check_by_id(curA, 'performance', pid):
+            print("Performance {} doesn’t exist".format(pid))
+            continue
+          if(assign_p_to_b(curA, pid, bid)):
+            print("Successfully assign a performance")
+            connection.commit()
+        except:
+          print("Invalid input")
+      
+      elif action == 11:
+        try:
+          pid = int(input("Performance ID: "))
+          if not check_building_assigned(curA, pid):
+            print("Performance {} isn't assigned".format(pid))
+            continue
+          aid = int(input("Audience ID: "))
+          seat_list = list(map(int, input("Seat number: ").split(',')))
+          if(can_reserve(curB, seat_list, pid)):
+            for seat in seat_list:
+              reserve(curA, pid, aid, seat)
+            price = get_ticket_price(curB, pid, aid)
+            total_price = round(price * len(seat_list))
+            print("Successfully book a performance.")
+            print("Total ticket price is {:,}".format(total_price))
+        except:
+          print("Invalid input")
+
+      elif action == 12:
+        try:
+          bid = int(input("Building ID: "))
+          if check_by_id(curA, 'building', bid):
+            print_performance_of_building(curA, curB, bid)
+          else:
+            print("Audience {} doesn’t exist".format(bid))
+        except:
+          print("Invalid input")
+
+      elif action == 13:
+        try:
+          pid = int(input("Performance ID: "))
+          if check_by_id(curA, 'performance', pid):
+            print_audience_of_performance(curA, pid)
+          else:
+            print("Performance {} doesn’t exist".format(pid))
+        except:
+          print("Invalid input")
+      
+      elif action == 14:
+        try:
+          pid = int(input("Performance ID: "))
+          if check_by_id(curA, 'performance', pid):
+            if check_building_assigned(curA, pid):
+              print_seat_of_performance(curB, pid)
+            else:
+              print("Performance {} isn't assigned".format(pid))
+          else:
+            print("Performance {} doesn’t exist".format(pid))
+        except:
+          print("Invalid input")
+
+      elif action == 15:
+        print("Bye!")
+        break
+
+      elif action == 16:
+        flag = input("Every table and data will be deleted. Go on ? (y/n) : ")
+        if flag == 'y':
+          refresh(curA, TABLES)
+
+  except:
+    print(invalid_message)
 
 curA.close()
 curB.close()
 connection.close()
+exit(0)
+
